@@ -1,0 +1,67 @@
+#!/bin/bash
+
+dir_path=""
+name=""
+
+while [ -n "$1" ]
+do
+  case "$1" in
+    -d) dir_path="$2"
+    shift
+    ;;
+    -n) name="$2"
+    shift
+    ;;
+    --) shift
+    break
+    ;;
+    *) echo "$1 is not options"
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+if [ -z "$dir_path" ]; then
+  echo "Missing -d option: the path to the directory to be packed."
+  exit 1
+fi
+
+if [ -z "$name" ]; then
+  echo "Missing -n option: the name of the resulting script file."
+  exit 1
+fi
+
+cat << EOF > ./$name
+#!/bin/sh
+unpackdir=""
+
+while [ -n "\$1" ]
+do
+  case "\$1" in
+    -o) if [ -z "\$2" ]; then
+      exit
+    else
+      mkdir \$2
+      unpackdir=" -C \$2"
+    fi
+    shift
+    ;;
+    --) shift
+    break
+    ;;
+    *) echo "\$1 is not options"
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+sed -e '1,/^END_OF_SCRIPT$/d' $name | base64 -d | tar \$unpackdir -zx
+exit
+END_OF_SCRIPT
+EOF
+
+tar -zc $dir_path | base64 >> ./$name
+chmod +x $name
+echo "ready"
